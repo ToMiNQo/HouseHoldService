@@ -18,10 +18,31 @@ import sk.fri.uniza.model.*;
 import sk.fri.uniza.resources.FieldResource;
 import sk.fri.uniza.resources.HouseHoldResource;
 import sk.fri.uniza.resources.IoTNodeResource;
+import sk.fri.uniza.health.DeleteHealthCheck;
+
+import javax.naming.Name;
 
 public class HouseHoldServiceApplication
         extends Application<HouseHoldServiceConfiguration> {
 
+    // Vytvorenie Hibernate balíka: tento balík kombinuje objekt určený na nastavenie Hibernate a samotnú knižnicu Hibernate
+    private final HibernateBundle<HouseHoldServiceConfiguration> hibernate =
+            // Všetky triedy(v žargóne Hibernate sú označované ako Entity),
+            // ktoré tvoria model musia byť prídané do Bundle
+            new HibernateBundle<HouseHoldServiceConfiguration>(
+                    HouseHold.class,
+                    IotNode.class,
+                    Field.class,
+                    DataDouble.class,
+                    DataString.class,
+                    DataInteger.class,
+                    ContactPerson.class) {
+                @Override
+                public DataSourceFactory getDataSourceFactory(
+                        HouseHoldServiceConfiguration configuration) {
+                    return configuration.getDataSourceFactory();
+                }
+            };
 
     public static void main(final String[] args) throws Exception {
         new HouseHoldServiceApplication().run(args);
@@ -45,7 +66,8 @@ public class HouseHoldServiceApplication
                 return configuration.swaggerBundleConfiguration;
             }
         });
-
+        // Pripojený balík Hibernate (ORM databáza)
+        bootstrap.addBundle(hibernate);
     }
 
     // V rámci životného cyklu, je táto metóda zavolaná až po metóde initialize.
@@ -54,7 +76,50 @@ public class HouseHoldServiceApplication
     @Override
     public void run(final HouseHoldServiceConfiguration configuration,
                     final Environment environment) {
-
+        // Vytvorené objekty na prístup k databáze
+        final HouseHoldDAO houseHoldDAO =
+                new HouseHoldDAO(hibernate.getSessionFactory());
+        final DataDAO dataDAO =
+                new DataDAO(hibernate.getSessionFactory());
+        final FieldDAO fieldDAO =
+                new FieldDAO(hibernate.getSessionFactory());
+        final IotNodeDAO iotNodeDAO =
+                new IotNodeDAO(hibernate.getSessionFactory());
+        // Vytvorené objekty reprezentujúce REST rozhranie
+        environment.jersey()
+                .register(new HouseHoldResource(houseHoldDAO, dataDAO));
+        environment.jersey()
+                .register(new FieldResource(fieldDAO));
+        environment.jersey()
+                .register(new DateParameterConverterProvider());
+        environment.jersey()
+                .register(new IoTNodeResource(iotNodeDAO));
+        // Vytvorenie Healthcheck (overenie zdravia aplikácie), ktorý
+        // využijeme na otestovanie databázy
+        UnitOfWorkAwareProxyFactory unitOfWorkAwareProxyFactory =
+                new UnitOfWorkAwareProxyFactory(hibernate);
+        final DatabaseHealthCheck databaseHealthCheck =
+                unitOfWorkAwareProxyFactory
+                        .create(DatabaseHealthCheck.class,
+                                new Class[]{HouseHoldDAO.class,
+                                        IotNodeDAO.class, FieldDAO.class,
+                                        DataDAO.class},
+                                new Object[]{houseHoldDAO, iotNodeDAO,
+                                        fieldDAO, dataDAO
+                                });
+        final DeleteHealthCheck deleteHealthCheck =
+        unitOfWorkAwareProxyFactory
+                .create(DeleteHealthCheck.class,
+                        FieldDAO.class,
+                        fieldDAO);
+        // Zaregistrovanie Healthcheck
+        environment.healthChecks()
+                .register("databaseHealthcheck", databaseHealthCheck);
+        environment.healthChecks()
+                .register("deleteHealthcheck", deleteHealthCheck);
+        // Spustenie všetkých health kontrol
+        environment.healthChecks().runHealthCheck("databaseHealthcheck");
+        environment.healthChecks().runHealthCheck("deleteHealthcheck");
     }
 
 }

@@ -13,5 +13,13 @@ import javax.validation.constraints.NotNull;
 public class HouseHoldServiceConfiguration extends Configuration {
     @JsonProperty("swagger")
     public SwaggerBundleConfiguration swaggerBundleConfiguration;
+    @Valid
+    @NotNull
+    @JsonProperty("database")
+    private DataSourceFactory database = new DataSourceFactory();
 
+    @JsonProperty("database")
+    public DataSourceFactory getDataSourceFactory() {
+        return database;
+    }
 }

@@ -31,6 +31,11 @@ import java.util.List;
         schemes = {SwaggerDefinition.Scheme.HTTP}
 
 )
+@Api("/household") // Swagger
+@Path("/household") // Koreňová adresa kolekcie koncových bodov
+// pre prístup k zdrojom domácností // Súčasť JAX-RS
+@Produces(MediaType.APPLICATION_JSON)// Výstupné dáta sú vo forme JSON //JAX-RS
+@Consumes(MediaType.APPLICATION_JSON) //Vstupné dáta sú vo forme JSON //JAX-RS
 
 public class HouseHoldResource {
 
@@ -44,49 +49,89 @@ public class HouseHoldResource {
     }
 
 
-    public AbstractData addData(Long hhId,
-                                String fieldID,
+    @POST // JAX-RS
+    @Path("{householdID}/{fieldID}") // JAX-RS
+    @UnitOfWork //Otvorí novú hibernate session //Dropwizzard
+    @ApiOperation(value = "Pridá nové dáta") // Swagger
+    public AbstractData addData(@PathParam("householdID")/* JAX-RS */ Long hhId,
+                                @PathParam("fieldID")/*JAX-RS*/ String fieldID,
                                 AbstractData data) {
-        return null;
+        return dataDAO.create(hhId, fieldID, data);
     }
 
 
-    public List<AbstractData> getData(Long hhId,
-                                      String fieldID,
-                                      final LocalDateTime from,
-                                      final LocalDateTime to) {
-        return null;
+    @GET // JAX-RS
+    @Path("{householdID}/{fieldID}") // JAX-RS
+    @UnitOfWork //Otvorí novú hibernate session // Dropwizzard
+    @ApiOperation(value = "Získanie dát o konkrétnej domácnosti a konkrétneho" +
+            " typu") // Swagger
+    public List<AbstractData> getData(
+            @PathParam("householdID")/*JAX-RS*/ Long hhId,
+            @PathParam("fieldID")/*JAX-RS*/ String fieldID,
+            @QueryParam("from") /*JAX-RS*/
+            @DateTimeFormat("dd/MM/yyyy HH:mm")
+            /*VLASTNÉ*/
+            @ApiParam(format = "dd/MM/yyyy HH:mm")
+            //SWAGGER
+            final LocalDateTime from,
+            @QueryParam("to")
+            @DateTimeFormat("dd/MM/yyyy HH:mm")
+            @ApiParam(format = "dd/MM/yyyy HH:mm") final LocalDateTime to) {
+        return dataDAO.findData(hhId, fieldID, from, to);
     }
 
+    @POST /*JAX-RS*/
+    @UnitOfWork //Otvorí novú hibernate session // Dropwizard
+    @ApiOperation(value = "Pridanie novej domácnosti")
+    public HouseHold createHouseHold(@Valid HouseHold household) {
 
-    public HouseHold createHouseHold(HouseHold houshold) {
-        return null;
+        return houseHoldDAO.create(household);
     }
-
+    @PUT /*JAX-RS*/
+    @Path("{id}") /*JAX-RS*/
+    @UnitOfWork //Otvorí novú hibernate session // Dropwizard
+    @ApiOperation(value = "Úprava existujúcej domácnosti")
     public HouseHold updateHouseHold(
-            Long id,
-            HouseHold houshold) {
-        houshold.setId(id);
-        return null;
+            @ApiParam(value = "ID", required = true) @PathParam("id") Long id,
+            @Valid HouseHold household) {
+        household.setId(id);
+        return houseHoldDAO.update(household);
     }
 
-
+    @GET
+    @UnitOfWork //Otvorí novú hibernate session
+    @ApiOperation(value = "Zoznam všetkých domácnosti")
     public List<HouseHold> listHouseHold() {
-        return null;
+
+        return houseHoldDAO.findAll();
     }
 
-
+    @GET //HTTP metóda
+    @Path("{id}") // Jedna vetva hlavnej adresy /household
+    @UnitOfWork //Otvorí novú hibernate session
+    @ApiOperation(value = "Údaje o konkrétnej domácnosť")
     public HouseHold getHouseHold(
-            Long id) {
-        return null;
+            @ApiParam(value = "ID", required = true) @PathParam("id") Long id) {
+        return houseHoldDAO.findById(id);
     }
 
-
+    @GET
+    @Path("filter")
+    @UnitOfWork //Otvorí novú hibernate session
+    @ApiOperation(value = "Vyfiltrovaný zoznam domácnosti")
     public List<HouseHold> filterHouseHold(
-            FilterEnum filter,
-            String value) {
+            @QueryParam("filter") FilterEnum filter,
+            @QueryParam("value") String value) {
 
+        switch (filter) {
+            case zip:
+                return houseHoldDAO.findByZip(value);
+            case firstName:
+                return houseHoldDAO.findByFirstName(value);
+            case lastName:
+                return houseHoldDAO.findByLastName(value);
+
+        }
         return null;
     }
-
 }

@@ -7,15 +7,51 @@ import javax.validation.Valid;
 import java.util.Collection;
 import java.util.Set;
 
+import io.swagger.annotations.ApiModelProperty;
+import org.hibernate.validator.constraints.NotEmpty;
+import javax.validation.constraints.Pattern;
+import javax.persistence.*;
 
+@org.hibernate.annotations.NamedQueries({
+        @org.hibernate.annotations.NamedQuery(name = "HouseHold_findByZip",
+                query = "from HouseHold where zip = :zipNo"),
+        @org.hibernate.annotations.NamedQuery(
+                name = "HouseHold_findByFirstName",
+                query = "from HouseHold where firstname = :name"),
+        @org.hibernate.annotations.NamedQuery(name = "HouseHold_findLastName",
+                query = "from HouseHold where lastname = :name"),
+        @org.hibernate.annotations.NamedQuery(name = "HouseHold_findAll",
+                query = "from HouseHold"),
+})
+@Entity
 public class HouseHold {
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
+    @ApiModelProperty(accessMode = ApiModelProperty.AccessMode.READ_ONLY)//Swagger nebude zobrazovať atribút
     private Long id;
+    @NotEmpty
+    @ApiModelProperty(example = "Univerzitná") // Príklad pre swagger dok.
     private String street;
+    @NotEmpty
+    @ApiModelProperty(example = "Žilina") // Príklad pre swagger dok.
     private String city;
+    @NotEmpty
+    @ApiModelProperty(example = "Slovakia") // Príklad pre swagger dok.
     private String state;
+    @NotEmpty
+    @Pattern(regexp = "^\\d*$")
+    @ApiModelProperty(example = "01008") // Príklad pre swagger dok.
     private String zip;
+    @Valid
     private ContactPerson contactPerson;
+    @OneToMany(fetch = FetchType.LAZY,
+            mappedBy = "houseHold")
+    @JsonIgnore // Ignorovanie danej premenej z pohladu Serializacie do
+    // Objektu JSON.Generoval by sa obrovský JSON a dochádzalo by aj k zacykleniu
     private Set<AbstractData> data;
+
+    @OneToMany(fetch = FetchType.EAGER,
+            mappedBy = "houseHold")
     private Collection<IotNode> iotNode;
 
     public Long getId() {
@@ -76,7 +112,10 @@ public class HouseHold {
 
     @Override
     public boolean equals(Object o) {
-        return false;
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        HouseHold houseHold = (HouseHold) o;
+        return id != null ? id.equals(houseHold.id) : houseHold.id == null;
     }
 
     @Override

@@ -1,42 +1,48 @@
 package sk.fri.uniza.db;
 
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import io.dropwizard.hibernate.AbstractDAO;
+import io.swagger.annotations.ApiModelProperty;
 import org.hibernate.SessionFactory;
+import org.hibernate.query.Query;
 import sk.fri.uniza.model.IotNode;
+
+import org.hibernate.HibernateException;
 
 import java.util.List;
 
 public class IotNodeDAO extends AbstractDAO<IotNodeDAO> {
-    /**
-     * Creates a new DAO with a given session provider.
-     *
-     * @param sessionFactory a session provider
-     */
-    public IotNodeDAO(SessionFactory sessionFactory) {
+
+   public IotNodeDAO(SessionFactory sessionFactory) {
         super(sessionFactory);
     }
 
-    public IotNode create(IotNode iotNode) {
+     public IotNode create(IotNode iotNode) {
         currentSession().save(iotNode);
         return iotNode;
     }
 
     public IotNode findById(Long id) {
-        //TODO Doplniť
-        return null;
+        Query query = super.currentSession().getSession().createQuery("from IotNode where id = :pa_id ");
+        query.setParameter("pa_id",id);
+        List<?> list = query.list();
+        return (IotNode) list.get(0);
+        //return get(id);
     }
 
     public IotNode update(IotNode iotNode) {
-        //TODO Doplniť
-        return null;
+       return  (IotNode) currentSession().merge(iotNode);
+
     }
 
     public List<IotNode> findByHouseHold(Long houseHoldId) {
-        //TODO Doplniť
-        return null;
+       return list(namedQuery("IotNode_findByhouseHoldId")
+                .setParameter("name", houseHoldId));
+
     }
 
     public List<IotNode> allIotNodes() {
-        return null;
+      return list(namedQuery("Node_All"));
+
     }
 }
